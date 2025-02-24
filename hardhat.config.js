@@ -13,7 +13,7 @@ module.exports = {
     sepolia: {
       url: SCROLL_RPC_URL,
       accounts: [PRIVATE_KEY],
-      chainId: 534352,
+      chainId: 534351,
     },
   },
 

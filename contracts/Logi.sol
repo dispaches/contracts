@@ -20,7 +20,7 @@ contract LogisticsPoD {
     }
     
     mapping(address => User) public users;
-    mapping(uint256 => Delivery) public deliveries;
+    mapping(address => Delivery) public deliveries;
     mapping(address => uint256) public balances;
     uint256 public deliveryCount;
     address public owner;
@@ -28,6 +28,7 @@ contract LogisticsPoD {
     event UserRegistered(address indexed user, Role role);
     event DeliverySubmitted(uint256 indexed deliveryId, address rider, string ipfsHash);
     event DeliveryVerified(uint256 indexed deliveryId, address rider, uint256 payment);
+    event UserCheck(Role indexed role)
     
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
@@ -48,6 +49,22 @@ contract LogisticsPoD {
         users[msg.sender] = User(_role, true);
         emit UserRegistered(msg.sender, _role);
     }
+
+    function getUser(address memory addressToCheck) external returns (Role){
+        if(users[msg.sender].role == Role.Customer) {
+            emit UserCheck(Role.Customer)
+        } else if(users[msg.sender].role == Role.Rider) {
+            emit UserCheck(Role.Rider)
+        } 
+    }
+
+    function registerOrder() external onlyRegistered {
+        Delivery storage delivery = deliveries[msg.sender];
+        delivery.customer = msg.sender;
+        delivery.timestamp = block.timestamp;
+        delivery.verified = false
+    }
+
     
     function submitDelivery(string memory _ipfsHash) external onlyRegistered {
         require(users[msg.sender].role == Role.Rider, "Only riders can submit delivery");

@@ -7,7 +7,7 @@ async function main() {
   await logi.waitForDeployment();
   const address = await logi.getAddress();
   console.log(`Deployed contract address: ${address}`);
-  if (network.config.chainId === 534352 && process.env.SCROLL_SCAN) {
+  if (network.config.chainId === 534351 && process.env.SCROLL_SCAN) {
     await simpleStorage.deployTransaction.wait(6);
     await verify(address, []);
   }
