@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
-
-contract LogisticsPoD {
+contract Logi {
     enum Role { None, Customer, Rider }
+    
     struct User {
         Role role;
         bool registered;
@@ -20,7 +18,7 @@ contract LogisticsPoD {
     }
     
     mapping(address => User) public users;
-    mapping(address => Delivery) public deliveries;
+    mapping(uint256 => Delivery) public deliveries;
     mapping(address => uint256) public balances;
     uint256 public deliveryCount;
     address public owner;
@@ -28,7 +26,7 @@ contract LogisticsPoD {
     event UserRegistered(address indexed user, Role role);
     event DeliverySubmitted(uint256 indexed deliveryId, address rider, string ipfsHash);
     event DeliveryVerified(uint256 indexed deliveryId, address rider, uint256 payment);
-    event UserCheck(Role indexed role)
+    event FundsWithdrawn(address indexed user, uint256 amount);
     
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
@@ -37,6 +35,11 @@ contract LogisticsPoD {
     
     modifier onlyRegistered() {
         require(users[msg.sender].registered, "User not registered");
+        _;
+    }
+    
+    modifier onlyRole(Role _role) {
+        require(users[msg.sender].role == _role, "Unauthorized role");
         _;
     }
     
@@ -50,37 +53,44 @@ contract LogisticsPoD {
         emit UserRegistered(msg.sender, _role);
     }
 
-    function getUser(address memory addressToCheck) external returns (Role){
-        if(users[msg.sender].role == Role.Customer) {
-            emit UserCheck(Role.Customer)
-        } else if(users[msg.sender].role == Role.Rider) {
-            emit UserCheck(Role.Rider)
-        } 
+    function getUser(address userAddress) external view returns (Role) {
+        return users[userAddress].role;
     }
 
-    function registerOrder() external onlyRegistered {
-        Delivery storage delivery = deliveries[msg.sender];
-        delivery.customer = msg.sender;
-        delivery.timestamp = block.timestamp;
-        delivery.verified = false
-    }
-
-    
-    function submitDelivery(string memory _ipfsHash) external onlyRegistered {
-        require(users[msg.sender].role == Role.Rider, "Only riders can submit delivery");
-        deliveries[deliveryCount] = Delivery(msg.sender, address(0), _ipfsHash, block.timestamp, false);
-        emit DeliverySubmitted(deliveryCount, msg.sender, _ipfsHash);
+    function registerOrder() external onlyRole(Role.Customer) {
+        deliveries[deliveryCount] = Delivery({
+            rider: address(0),
+            customer: msg.sender,
+            ipfsHash: "",
+            timestamp: block.timestamp,
+            verified: false
+        });
         deliveryCount++;
     }
     
-    function verifyDelivery(uint256 _deliveryId, address _customer) external onlyOwner {
-        Delivery storage delivery = deliveries[_deliveryId];
+    function submitDelivery(uint256 _deliveryId, string memory _ipfsHash) external onlyRole(Role.Rider) {
+        require(_deliveryId < deliveryCount, "Invalid delivery ID");
+        Delivery storage delivery = deliveries[_deliveryId]; 
+        require(delivery.customer != address(0), "Order not assigned");
+        require(delivery.rider == address(0), "Delivery already submitted");
+        
+        delivery.rider = msg.sender;
+        delivery.ipfsHash = _ipfsHash;
+        delivery.timestamp = block.timestamp;
+        delivery.verified = false;
+        
+        emit DeliverySubmitted(_deliveryId, msg.sender, _ipfsHash);
+    }
+    
+    function verifyDelivery(uint256 _deliveryId) external onlyOwner {
+        require(_deliveryId < deliveryCount, "Invalid delivery ID");
+        Delivery storage delivery = deliveries[_deliveryId]; 
         require(!delivery.verified, "Already verified");
+        require(delivery.rider != address(0), "Delivery not submitted");
         
         delivery.verified = true;
-        delivery.customer = _customer;
         
-        uint256 paymentAmount = 0.01 ether; // Set payment amount
+        uint256 paymentAmount = 0.01 ether; // Payment amount
         balances[delivery.rider] += paymentAmount;
         
         emit DeliveryVerified(_deliveryId, delivery.rider, paymentAmount);
@@ -90,13 +100,16 @@ contract LogisticsPoD {
         uint256 amount = balances[msg.sender];
         require(amount > 0, "No funds to withdraw");
         balances[msg.sender] = 0;
-        payable(msg.sender).transfer(amount);
+
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Withdraw failed");
+        emit FundsWithdrawn(msg.sender, amount);
     }
     
     function getAllDeliveries() external view returns (Delivery[] memory) {
         Delivery[] memory allDeliveries = new Delivery[](deliveryCount);
         for (uint256 i = 0; i < deliveryCount; i++) {
-            allDeliveries[i] = deliveries[i];
+            allDeliveries[i] = deliveries[i]; 
         }
         return allDeliveries; 
     }
