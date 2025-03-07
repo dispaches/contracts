@@ -8,9 +8,15 @@ async function main() {
   const address = await logi.getAddress();
   console.log(`Deployed contract address: ${address}`);
   if (network.config.chainId === 534351 && process.env.SCROLL_SCAN) {
-    await simpleStorage.deployTransaction.wait(6);
+    console.log("Waiting for 6 confirmations before verifying...");
+    await delay(30000);
     await verify(address, []);
   }
+}
+
+// Utility function to add a delay
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 //Progammatic Verification of contract
