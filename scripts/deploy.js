@@ -7,11 +7,11 @@ async function main() {
   await logi.waitForDeployment();
   const address = await logi.getAddress();
   console.log(`Deployed contract address: ${address}`);
-  if (network.config.chainId === 534351 && process.env.SCROLL_SCAN) {
-    console.log("Waiting for 6 confirmations before verifying...");
-    await delay(30000);
-    await verify(address, []);
-  }
+  // if (network.config.chainId === 534351 && process.env.SCROLL_SCAN) {
+  //   console.log("Waiting for 6 confirmations before verifying...");
+  //   await delay(30000);
+  //   await verify(address, []);
+  // }
 }
 
 // Utility function to add a delay
